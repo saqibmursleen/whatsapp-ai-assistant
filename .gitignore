@@ -1,0 +1,8 @@
+# Never commit real API keys - .env.example is the safe template to share
+.env
+.env.*
+!.env.example
+
+node_modules/
+npm-debug.log*
+.DS_Store

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp AI Assistant — Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: #d9d3cc;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; padding: 12px;
+  }
+  .phone {
+    width: 100%; max-width: 420px; height: 92vh; max-height: 780px;
+    background: #efeae2; border-radius: 18px; overflow: hidden;
+    display: flex; flex-direction: column;
+    box-shadow: 0 12px 40px rgba(0,0,0,.35);
+  }
+  header {
+    background: #075e54; color: #fff;
+    padding: 10px 14px; display: flex; align-items: center; gap: 10px;
+  }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #128c7e; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .head-info { flex: 1; min-width: 0; }
+  .head-info .name { font-weight: 600; font-size: 15px; }
+  .head-info .status { font-size: 12px; opacity: .85; }
+  select {
+    background: #054d44; color: #fff; border: none; border-radius: 8px;
+    padding: 6px 8px; font-size: 12px; max-width: 130px;
+  }
+  .chat {
+    flex: 1; overflow-y: auto; padding: 14px 10px;
+    background:
+      linear-gradient(rgba(229,221,213,.93), rgba(229,221,213,.93)),
+      repeating-linear-gradient(45deg, #d5ccc2 0 2px, transparent 2px 14px);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .msg {
+    max-width: 80%; padding: 7px 10px; border-radius: 8px;
+    font-size: 14px; line-height: 1.35; white-space: pre-wrap;
+    box-shadow: 0 1px 1px rgba(0,0,0,.12);
+  }
+  .msg.in  { background: #fff; align-self: flex-start; border-top-left-radius: 0; }
+  .msg.out { background: #dcf8c6; align-self: flex-end; border-top-right-radius: 0; }
+  .msg .time { display: block; font-size: 10px; color: #8a8a8a; text-align: right; margin-top: 3px; }
+  .notice {
+    align-self: center; background: #fdf3c5; color: #6b5d1f;
+    font-size: 12px; padding: 5px 12px; border-radius: 12px;
+    box-shadow: 0 1px 1px rgba(0,0,0,.1);
+  }
+  .typing { align-self: flex-start; background: #fff; border-radius: 8px; padding: 10px 14px; display: none; }
+  .typing.show { display: block; }
+  .typing span {
+    display: inline-block; width: 7px; height: 7px; margin: 0 1.5px;
+    background: #9e9e9e; border-radius: 50%; animation: blink 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 60%, 100% { opacity: .25; } 30% { opacity: 1; } }
+  footer { background: #f0f0f0; padding: 8px; display: flex; gap: 8px; }
+  footer input {
+    flex: 1; border: none; border-radius: 20px; padding: 11px 16px;
+    font-size: 14px; outline: none; background: #fff;
+  }
+  footer button {
+    width: 44px; height: 44px; border: none; border-radius: 50%;
+    background: #075e54; color: #fff; font-size: 18px; cursor: pointer;
+  }
+  footer button:disabled { opacity: .5; cursor: default; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <header>
+    <div class="avatar">💬</div>
+    <div class="head-info">
+      <div class="name" id="bizName">Loading…</div>
+      <div class="status">online · replies instantly</div>
+    </div>
+    <select id="bizSelect" title="Switch demo business"></select>
+  </header>
+  <div class="chat" id="chat">
+    <div class="notice">This is a live demo — messages are answered by AI</div>
+  </div>
+  <footer>
+    <input id="input" type="text" placeholder="Type a message" autocomplete="off">
+    <button id="send" title="Send">➤</button>
+  </footer>
+</div>
+
+<script>
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const sendBtn = document.getElementById("send");
+const bizSelect = document.getElementById("bizSelect");
+const bizName = document.getElementById("bizName");
+
+const sessionId = "demo-" + Math.random().toString(36).slice(2, 10);
+let businessId = null;
+
+function now() {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function addMessage(text, dir) {
+  const div = document.createElement("div");
+  div.className = "msg " + dir;
+  div.textContent = text;
+  const time = document.createElement("span");
+  time.className = "time";
+  time.textContent = now();
+  div.appendChild(time);
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addNotice(text) {
+  const div = document.createElement("div");
+  div.className = "notice";
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+const typing = document.createElement("div");
+typing.className = "typing";
+typing.innerHTML = "<span></span><span></span><span></span>";
+
+let allBusinesses = [];
+
+function openChatFor(biz) {
+  businessId = biz.id;
+  bizName.textContent = biz.name;
+  document.querySelector(".avatar").textContent = biz.emoji || "💬";
+  chat.querySelectorAll(".msg, .notice").forEach((el) => el.remove());
+  addNotice("This is a live demo — messages are answered by AI");
+  addMessage("Hello! 👋 Welcome to " + biz.name + ". How can I help you today?", "in");
+}
+
+async function init() {
+  const res = await fetch("/api/businesses");
+  const data = await res.json();
+  allBusinesses = data.businesses;
+  for (const b of allBusinesses) {
+    const opt = document.createElement("option");
+    opt.value = b.id;
+    opt.textContent = b.name;
+    bizSelect.appendChild(opt);
+  }
+  if (!allBusinesses.length) {
+    bizName.textContent = "No business loaded";
+    return;
+  }
+  // Open whichever business is named in the URL (?b=bright-smile-dental), else the first one.
+  const wanted = new URLSearchParams(location.search).get("b");
+  const biz = allBusinesses.find((b) => b.id === wanted) || allBusinesses[0];
+  bizSelect.value = biz.id;
+  openChatFor(biz);
+  if (!data.ai?.configured) {
+    const keyName = data.ai?.provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
+    addNotice("⚠ AI key not set — add " + keyName + " to .env and restart");
+  }
+}
+
+bizSelect.addEventListener("change", () => {
+  const biz = allBusinesses.find((b) => b.id === bizSelect.value);
+  if (biz) openChatFor(biz);
+});
+
+async function send() {
+  const text = input.value.trim();
+  if (!text || !businessId) return;
+  input.value = "";
+  sendBtn.disabled = true;
+  addMessage(text, "out");
+  chat.appendChild(typing);
+  typing.classList.add("show");
+  chat.scrollTop = chat.scrollHeight;
+
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessId, sessionId, message: text }),
+    });
+    const data = await res.json();
+    typing.classList.remove("show");
+    typing.remove();
+    if (data.reply) {
+      addMessage(data.reply, "in");
+      if (data.handoff) addNotice("🔔 Staff notified — a human will take over this chat");
+    } else {
+      addNotice("Error: " + (data.detail || data.error || "unknown"));
+    }
+  } catch (err) {
+    typing.classList.remove("show");
+    typing.remove();
+    addNotice("Network error: " + err.message);
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+sendBtn.addEventListener("click", send);
+input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+
+init();
+</script>
+</body>
+</html>

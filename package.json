@@ -1,0 +1,19 @@
+{
+  "name": "whatsapp-ai-bot",
+  "version": "0.1.0",
+  "description": "AI WhatsApp assistant for businesses - answers customer queries instantly using each business's own info",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "openai": "^6.49.0"
+  }
+}
